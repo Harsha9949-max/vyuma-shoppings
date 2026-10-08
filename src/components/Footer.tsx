@@ -55,13 +55,15 @@ export const Footer: React.FC = () => {
           <p className="text-[11px] font-bold text-[#878787] uppercase tracking-wider mb-2">
             Store & Infrastructure:
           </p>
-          <p className="leading-relaxed text-gray-300">
-            VYUMA Online E-Commerce Platform<br />
-            Direct Database Sync: Firebase Cloud Firestore<br />
-            Payment Processing Partner: Razorpay Payments<br />
-            Master Administration: marateyh@gmail.com<br />
-            Support: support@vyuma.in
-          </p>
+          <div className="leading-relaxed text-gray-300 space-y-1">
+            <p className="font-semibold text-white">VYUMA Online E-Commerce Platform</p>
+            <p>Direct Cloud Database: Firebase Cloud Firestore</p>
+            <p>Verified Payment Partner: Razorpay Payments</p>
+            <p>Customer Support: support@vyuma.in</p>
+            <p className="text-[11px] text-gray-400 pt-1">
+              Registered Office: Bengaluru, Karnataka, India
+            </p>
+          </div>
         </div>
       </div>
 

@@ -131,9 +131,9 @@ export const HomeView: React.FC<HomeViewProps> = ({
             ) : (
               <div className="space-y-4">
                 <p className="text-xs text-gray-500">
-                  New inventory is added regularly by authorized administrators.
+                  New collections and genuine deals are added regularly. Explore our departments below:
                 </p>
-                <div className="flex flex-wrap justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-2 pt-2">
                   {CATEGORIES.map((cat) => (
                     <button
                       key={cat.id}

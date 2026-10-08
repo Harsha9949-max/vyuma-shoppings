@@ -23,7 +23,10 @@ interface AuthContextType {
   loading: boolean;
   isAdmin: boolean;
   isGoogleAuth: boolean;
-  signInWithGoogle: () => Promise<void>;
+  adminPanelOpen: boolean;
+  setAdminPanelOpen: (open: boolean) => void;
+  triggerAdminPanel: () => void;
+  signInWithGoogle: () => Promise<any>;
   signInWithEmail: (email: string, pass: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, pass: string) => Promise<void>;
   logout: () => Promise<void>;
@@ -43,6 +46,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [loading, setLoading] = useState<boolean>(true);
   const [isGoogleAuth, setIsGoogleAuth] = useState<boolean>(false);
   const [authModalOpen, setAuthModalOpen] = useState<boolean>(false);
+  const [adminPanelOpen, setAdminPanelOpen] = useState<boolean>(false);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [selectedAddress, setSelectedAddress] = useState<Address | null>(null);
 
@@ -50,31 +54,50 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
+        const emailLower = (fbUser.email || '').trim().toLowerCase();
+        const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+
         // Check if authentication provider is Google
-        const hasGoogleProvider = fbUser.providerData.some(
-          (p) => p.providerId === 'google.com'
-        );
+        const hasGoogleProvider =
+          fbUser.providerData.some(
+            (p) => p.providerId === 'google.com' || p.providerId === 'google'
+          ) ||
+          fbUser.providerId === 'google.com' ||
+          sessionStorage.getItem('vyuma_last_provider') === 'google' ||
+          (isMaster && emailLower.endsWith('@gmail.com'));
+
         setIsGoogleAuth(hasGoogleProvider);
 
-        const isMaster =
-          hasGoogleProvider &&
-          fbUser.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase();
+        // Immediate user profile update so UI reflects admin state instantly
+        const initialProfile: UserProfile = {
+          uid: fbUser.uid,
+          email: fbUser.email,
+          displayName: fbUser.displayName || (isMaster ? 'Master Admin' : fbUser.email?.split('@')[0] || 'Vyuma Shopper'),
+          photoURL: fbUser.photoURL,
+          role: isMaster ? 'admin' : 'customer',
+        };
+        setUser(initialProfile);
 
-        let userRole: 'customer' | 'admin' = isMaster ? 'admin' : 'customer';
+        // Automatically trigger Admin Panel if master admin signs in
+        if (isMaster) {
+          setAdminPanelOpen(true);
+        }
 
+        // Background sync to Firestore users collection
         try {
           const userDocRef = doc(db, 'users', fbUser.uid);
           const snap = await getDoc(userDocRef);
           if (snap.exists()) {
             const data = snap.data();
-            userRole = isMaster ? 'admin' : (data.role || 'customer');
+            const resolvedRole = isMaster ? 'admin' : (data.role || 'customer');
+            setUser((prev) => (prev ? { ...prev, role: resolvedRole } : initialProfile));
           } else {
             await setDoc(userDocRef, {
               uid: fbUser.uid,
               email: fbUser.email,
               displayName: fbUser.displayName,
               photoURL: fbUser.photoURL,
-              role: userRole,
+              role: isMaster ? 'admin' : 'customer',
               provider: hasGoogleProvider ? 'google' : 'password',
               createdAt: Date.now(),
             });
@@ -82,21 +105,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         } catch (e) {
           console.warn('Firestore user profile sync notice:', e);
         }
-
-        const profile: UserProfile = {
-          uid: fbUser.uid,
-          email: fbUser.email,
-          displayName: fbUser.displayName || fbUser.email?.split('@')[0] || 'Vyuma Shopper',
-          photoURL: fbUser.photoURL,
-          role: userRole,
-        };
-
-        setUser(profile);
       } else {
         setUser(null);
         setIsGoogleAuth(false);
         setAddresses([]);
         setSelectedAddress(null);
+        setAdminPanelOpen(false);
       }
       setLoading(false);
     });
@@ -123,8 +137,28 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithGoogle = async () => {
     try {
-      await signInWithPopup(auth, googleProvider);
+      sessionStorage.setItem('vyuma_last_provider', 'google');
+      const res = await signInWithPopup(auth, googleProvider);
+      const emailLower = (res.user.email || '').trim().toLowerCase();
+      const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+
+      setIsGoogleAuth(true);
+
+      const profile: UserProfile = {
+        uid: res.user.uid,
+        email: res.user.email,
+        displayName: res.user.displayName || (isMaster ? 'Master Admin' : 'Vyuma Shopper'),
+        photoURL: res.user.photoURL,
+        role: isMaster ? 'admin' : 'customer',
+      };
+      setUser(profile);
       setAuthModalOpen(false);
+
+      // Trigger admin panel immediately if master admin
+      if (isMaster) {
+        setAdminPanelOpen(true);
+      }
+      return res.user;
     } catch (err: any) {
       console.error('Google Sign In Error:', err);
       throw err;
@@ -133,8 +167,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signInWithEmail = async (email: string, pass: string) => {
     try {
-      await signInWithEmailAndPassword(auth, email, pass);
+      sessionStorage.setItem('vyuma_last_provider', 'password');
+      const res = await signInWithEmailAndPassword(auth, email, pass);
+      const emailLower = (res.user.email || '').trim().toLowerCase();
+      const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+
+      const profile: UserProfile = {
+        uid: res.user.uid,
+        email: res.user.email,
+        displayName: res.user.displayName || (isMaster ? 'Master Admin' : 'Vyuma Shopper'),
+        photoURL: res.user.photoURL,
+        role: isMaster ? 'admin' : 'customer',
+      };
+      setUser(profile);
       setAuthModalOpen(false);
+
+      if (isMaster) {
+        setAdminPanelOpen(true);
+      }
     } catch (err: any) {
       console.error('Email Sign In Error:', err);
       throw err;
@@ -143,6 +193,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const signUpWithEmail = async (name: string, email: string, pass: string) => {
     try {
+      sessionStorage.setItem('vyuma_last_provider', 'password');
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(res.user, { displayName: name });
 
@@ -175,14 +226,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const logout = async () => {
     try {
+      sessionStorage.removeItem('vyuma_last_provider');
+      sessionStorage.removeItem('vyuma_admin_triggered_session');
       await signOut(auth);
     } catch (err) {
       console.warn('Sign out error:', err);
     }
     setUser(null);
     setIsGoogleAuth(false);
+    setAdminPanelOpen(false);
     setAddresses([]);
     setSelectedAddress(null);
+  };
+
+  const triggerAdminPanel = () => {
+    setAdminPanelOpen(true);
   };
 
   // Add Address directly to Firestore
@@ -211,9 +269,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Admin access is strictly via Google Auth for marateyh@gmail.com
+  // Admin access is strictly for marateyh@gmail.com
+  const emailLower = (user?.email || auth.currentUser?.email || '').trim().toLowerCase();
   const isAdmin = Boolean(
-    isGoogleAuth && user?.email?.toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()
+    emailLower === MASTER_ADMIN_EMAIL.toLowerCase()
   );
 
   return (
@@ -223,6 +282,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         isAdmin,
         isGoogleAuth,
+        adminPanelOpen,
+        setAdminPanelOpen,
+        triggerAdminPanel,
         signInWithGoogle,
         signInWithEmail,
         signUpWithEmail,

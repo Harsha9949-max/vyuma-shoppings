@@ -12,7 +12,6 @@ import {
 } from 'firebase/firestore';
 import { db } from './config';
 import { CartItem, Order, Product, Review, StoreSettings, Address } from '../types';
-import { INITIAL_PRODUCTS } from '../data/initialProducts';
 
 const PRODUCTS_COLLECTION = 'products';
 const USERS_COLLECTION = 'users';

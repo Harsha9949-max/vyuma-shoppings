@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth, MASTER_ADMIN_EMAIL } from '../context/AuthContext';
 
 export const AuthModal: React.FC = () => {
   const {
     authModalOpen,
     setAuthModalOpen,
+    setAdminPanelOpen,
     signInWithGoogle,
     signInWithEmail,
     signUpWithEmail,
@@ -59,10 +60,16 @@ export const AuthModal: React.FC = () => {
     setError(null);
     setSubmitting(true);
     try {
-      await signInWithGoogle();
+      const fbUser = await signInWithGoogle();
+      setAuthModalOpen(false);
+      if (fbUser?.email?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
+        setAdminPanelOpen(true);
+      }
     } catch (err: any) {
       if (err.code === 'auth/popup-closed-by-user') {
         setError('Google Sign-In was cancelled.');
+      } else if (err.code === 'auth/popup-blocked') {
+        setError('Popup was blocked by your browser. Please allow popups for this site.');
       } else {
         setError(err.message || 'Google Sign-In failed. Please try again.');
       }

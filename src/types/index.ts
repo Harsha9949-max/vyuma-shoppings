@@ -48,7 +48,7 @@ export interface UserProfile {
   displayName: string | null;
   photoURL: string | null;
   phoneNumber?: string;
-  role?: 'customer' | 'seller' | 'admin';
+  role?: 'customer' | 'admin';
 }
 
 export interface CartItem {

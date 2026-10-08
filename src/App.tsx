@@ -22,7 +22,7 @@ import { Footer } from './components/Footer';
 import { CategorySlug, Product } from './types';
 
 function MainApp() {
-  const { user, isAdmin, isGoogleAuth } = useAuth();
+  const { user, isAdmin, isGoogleAuth, adminPanelOpen, setAdminPanelOpen } = useAuth();
   const {
     products,
     selectedCategory,
@@ -38,7 +38,6 @@ function MainApp() {
 
   // Modals state
   const [checkoutOpen, setCheckoutOpen] = useState(false);
-  const [adminPanelOpen, setAdminPanelOpen] = useState(false);
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [aiContextProduct, setAiContextProduct] = useState<Product | null>(null);
 
@@ -47,12 +46,14 @@ function MainApp() {
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.shiftKey && (e.key === 'A' || e.key === 'a')) {
         e.preventDefault();
-        setAdminPanelOpen((prev) => !prev);
+        if (isAdmin) {
+          setAdminPanelOpen(!adminPanelOpen);
+        }
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [adminPanelOpen, isAdmin]);
 
   const handleSelectProduct = (prod: Product) => {
     setSelectedProduct(prod);
@@ -94,22 +95,37 @@ function MainApp() {
         <p className="text-gray-400 text-sm max-w-md mb-6">
           We are upgrading our cloud systems and database for high-speed shopping. We will be back online shortly.
         </p>
-        <button
-          onClick={() => setAdminPanelOpen(true)}
-          className="text-xs text-gray-400 hover:text-white underline cursor-pointer"
-        >
-          Master Admin Portal
-        </button>
-        <AdminPanelModal
-          isOpen={adminPanelOpen}
-          onClose={() => setAdminPanelOpen(false)}
-        />
       </div>
     );
   }
 
   return (
     <div className="min-h-screen flex flex-col bg-[#f1f3f6] text-[#212121]">
+      {/* Master Admin Persistent Header Banner */}
+      {isAdmin && (
+        <div className="bg-gradient-to-r from-gray-950 via-[#0d1b3e] to-gray-950 text-white px-4 py-2 text-xs font-semibold flex flex-wrap items-center justify-between border-b-2 border-yellow-400 shadow-md gap-2">
+          <div className="flex items-center gap-2">
+            <span className="relative flex h-2.5 w-2.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            </span>
+            <span className="text-yellow-400 font-extrabold uppercase tracking-wide">MASTER ADMIN ACTIVE:</span>
+            <span className="font-mono text-gray-200">{MASTER_ADMIN_EMAIL}</span>
+            <span className="bg-emerald-950/80 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/40">
+              Google Auth Verified
+            </span>
+          </div>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setAdminPanelOpen(true)}
+              className="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-black px-3.5 py-1 rounded text-xs shadow-md transition transform hover:scale-105 cursor-pointer flex items-center gap-1.5"
+            >
+              <span>👑 Open Admin Command Center</span>
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Top Navbar */}
       <Navbar
         onOpenAdminPanel={() => setAdminPanelOpen(true)}
@@ -206,10 +222,12 @@ function MainApp() {
         onOrderSuccess={handleOrderSuccess}
       />
 
-      <AdminPanelModal
-        isOpen={adminPanelOpen}
-        onClose={() => setAdminPanelOpen(false)}
-      />
+      {isAdmin && (
+        <AdminPanelModal
+          isOpen={adminPanelOpen}
+          onClose={() => setAdminPanelOpen(false)}
+        />
+      )}
 
       <VyumaAssistantDrawer
         isOpen={aiAssistantOpen}
