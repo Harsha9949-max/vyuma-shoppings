@@ -15,7 +15,7 @@ import { BannerCarousel } from './BannerCarousel';
 import { DealsOfTheDay } from './DealsOfTheDay';
 import { ProductCard } from './ProductCard';
 import { CATEGORIES } from '../data/initialProducts';
-import { useAuth, MASTER_ADMIN_EMAIL } from '../context/AuthContext';
+import { useAuth, SUPER_ADMIN_EMAILS } from '../context/AuthContext';
 
 interface HomeViewProps {
   products: Product[];
@@ -115,7 +115,7 @@ export const HomeView: React.FC<HomeViewProps> = ({
             {isAdmin && onOpenAdminPanel ? (
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-4 max-w-md mx-auto mb-6 text-left">
                 <p className="text-xs font-bold text-amber-900 mb-1">
-                  Master Admin Access Active ({MASTER_ADMIN_EMAIL})
+                  Master Admin Access Active ({user?.email || 'Super Admin'})
                 </p>
                 <p className="text-[11px] text-amber-800 mb-3">
                   You are authorized to add genuine products, manage stock, and monitor orders in real-time.

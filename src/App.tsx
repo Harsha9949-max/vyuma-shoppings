@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { Sparkles, CheckCircle2, ShieldAlert } from 'lucide-react';
-import { AuthProvider, useAuth, MASTER_ADMIN_EMAIL } from './context/AuthContext';
+import { AuthProvider, useAuth, SUPER_ADMIN_EMAILS } from './context/AuthContext';
 import { ShopProvider, useShop } from './context/ShopContext';
 import { Navbar } from './components/Navbar';
 import { HomeView } from './components/HomeView';
@@ -110,7 +110,7 @@ function MainApp() {
               <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
             </span>
             <span className="text-yellow-400 font-extrabold uppercase tracking-wide">MASTER ADMIN ACTIVE:</span>
-            <span className="font-mono text-gray-200">{MASTER_ADMIN_EMAIL}</span>
+            <span className="font-mono text-gray-200">{user?.email || 'Super Admin'}</span>
             <span className="bg-emerald-950/80 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/40">
               Google Auth Verified
             </span>

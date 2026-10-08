@@ -17,6 +17,11 @@ import {
 } from '../firebase/services';
 
 export const MASTER_ADMIN_EMAIL = 'marateyh@gmail.com';
+export const SUPER_ADMIN_EMAILS = [
+  'hvrsindustriespvtltd@gmail.com',
+  'marateyh@gmail.com',
+  'maratayh@gmail.com'
+];
 
 interface AuthContextType {
   user: UserProfile | null;
@@ -55,7 +60,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsubscribe = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         const emailLower = (fbUser.email || '').trim().toLowerCase();
-        const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+        const isMaster = SUPER_ADMIN_EMAILS.includes(emailLower);
 
         // Check if authentication provider is Google
         const hasGoogleProvider =
@@ -140,7 +145,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('vyuma_last_provider', 'google');
       const res = await signInWithPopup(auth, googleProvider);
       const emailLower = (res.user.email || '').trim().toLowerCase();
-      const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+      const isMaster = SUPER_ADMIN_EMAILS.includes(emailLower);
 
       setIsGoogleAuth(true);
 
@@ -170,7 +175,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       sessionStorage.setItem('vyuma_last_provider', 'password');
       const res = await signInWithEmailAndPassword(auth, email, pass);
       const emailLower = (res.user.email || '').trim().toLowerCase();
-      const isMaster = emailLower === MASTER_ADMIN_EMAIL.toLowerCase();
+      const isMaster = SUPER_ADMIN_EMAILS.includes(emailLower);
 
       const profile: UserProfile = {
         uid: res.user.uid,
@@ -269,10 +274,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Admin access is strictly for marateyh@gmail.com
+  // Admin access is strictly for authorized Super Admins
   const emailLower = (user?.email || auth.currentUser?.email || '').trim().toLowerCase();
   const isAdmin = Boolean(
-    emailLower === MASTER_ADMIN_EMAIL.toLowerCase()
+    SUPER_ADMIN_EMAILS.includes(emailLower)
   );
 
   return (

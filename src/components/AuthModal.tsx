@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { X, Lock, Mail, User, ShieldCheck, Sparkles, ArrowRight } from 'lucide-react';
-import { useAuth, MASTER_ADMIN_EMAIL } from '../context/AuthContext';
+import { useAuth, SUPER_ADMIN_EMAILS } from '../context/AuthContext';
 
 export const AuthModal: React.FC = () => {
   const {
@@ -62,7 +62,8 @@ export const AuthModal: React.FC = () => {
     try {
       const fbUser = await signInWithGoogle();
       setAuthModalOpen(false);
-      if (fbUser?.email?.trim().toLowerCase() === MASTER_ADMIN_EMAIL.toLowerCase()) {
+      const emailLower = (fbUser?.email || '').trim().toLowerCase();
+      if (SUPER_ADMIN_EMAILS.includes(emailLower)) {
         setAdminPanelOpen(true);
       }
     } catch (err: any) {
