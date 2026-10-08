@@ -1,0 +1,6 @@
+{
+  "name": "VYUMA - Online Shopping Platform",
+  "description": "India's trusted online shopping destination with seamless Firebase database, real-time auth, product catalog, cart, and Vyuma AI assistant.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
