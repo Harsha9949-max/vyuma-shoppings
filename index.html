@@ -2,6 +2,32 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
+    <script>
+      (function() {
+        window.addEventListener('error', function(event) {
+          if (event && (
+            (event.filename && event.filename.indexOf('chrome-extension://') !== -1) ||
+            (event.message && (
+              event.message.indexOf('Cannot set property fetch') !== -1 ||
+              event.message.indexOf('chrome-extension') !== -1
+            ))
+          )) {
+            event.preventDefault();
+            if (event.stopImmediatePropagation) event.stopImmediatePropagation();
+            return true;
+          }
+        }, true);
+
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event && event.reason && (
+            (typeof event.reason.message === 'string' && event.reason.message.indexOf('fetch') !== -1) ||
+            (typeof event.reason.stack === 'string' && event.reason.stack.indexOf('chrome-extension://') !== -1)
+          )) {
+            event.preventDefault();
+          }
+        });
+      })();
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>VYUMA - Online Shopping Platform</title>
     <meta name="description" content="India's trusted online shopping destination with seamless Firebase database, real-time auth, product catalog, cart, and Vyuma AI assistant." />

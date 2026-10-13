@@ -22,7 +22,7 @@ import { Footer } from './components/Footer';
 import { CategorySlug, Product } from './types';
 
 function MainApp() {
-  const { user, isAdmin, isGoogleAuth, adminPanelOpen, setAdminPanelOpen } = useAuth();
+  const { user, isAdmin, isGoogleAuth, adminPanelOpen, setAdminPanelOpen, setAuthModalOpen } = useAuth();
   const {
     products,
     selectedCategory,
@@ -41,6 +41,37 @@ function MainApp() {
   const [aiAssistantOpen, setAiAssistantOpen] = useState(false);
   const [aiContextProduct, setAiContextProduct] = useState<Product | null>(null);
 
+  // Direct entry check: if admin enters directly (URL /admin, #admin, ?admin=true), trigger admin panel
+  useEffect(() => {
+    const handleAdminRoute = () => {
+      const hash = window.location.hash.toLowerCase();
+      const path = window.location.pathname.toLowerCase();
+      const search = window.location.search.toLowerCase();
+      if (
+        hash === '#admin' ||
+        hash === '#/admin' ||
+        path === '/admin' ||
+        path.startsWith('/admin') ||
+        search.includes('admin=true') ||
+        search.includes('admin=1')
+      ) {
+        if (isAdmin) {
+          setAdminPanelOpen(true);
+        } else {
+          setAuthModalOpen(true);
+        }
+      }
+    };
+
+    handleAdminRoute();
+    window.addEventListener('hashchange', handleAdminRoute);
+    window.addEventListener('popstate', handleAdminRoute);
+    return () => {
+      window.removeEventListener('hashchange', handleAdminRoute);
+      window.removeEventListener('popstate', handleAdminRoute);
+    };
+  }, [isAdmin, setAdminPanelOpen, setAuthModalOpen]);
+
   // Keyboard shortcut (Ctrl+Shift+A) for Master Admin Command Center
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -53,7 +84,7 @@ function MainApp() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [adminPanelOpen, isAdmin]);
+  }, [adminPanelOpen, isAdmin, setAdminPanelOpen]);
 
   const handleSelectProduct = (prod: Product) => {
     setSelectedProduct(prod);
@@ -103,22 +134,22 @@ function MainApp() {
     <div className="min-h-screen flex flex-col bg-[#f1f3f6] text-[#212121]">
       {/* Master Admin Persistent Header Banner */}
       {isAdmin && (
-        <div className="bg-gradient-to-r from-gray-950 via-[#0d1b3e] to-gray-950 text-white px-4 py-2 text-xs font-semibold flex flex-wrap items-center justify-between border-b-2 border-yellow-400 shadow-md gap-2">
+        <div className="bg-gradient-to-r from-[#172337] via-[#1a3f7a] to-[#2874f0] text-white px-4 py-2 text-xs font-semibold flex flex-wrap items-center justify-between border-b border-blue-400/40 shadow-sm gap-2">
           <div className="flex items-center gap-2">
             <span className="relative flex h-2.5 w-2.5">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-400"></span>
             </span>
-            <span className="text-yellow-400 font-extrabold uppercase tracking-wide">MASTER ADMIN ACTIVE:</span>
-            <span className="font-mono text-gray-200">{user?.email || 'Super Admin'}</span>
-            <span className="bg-emerald-950/80 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-500/40">
+            <span className="text-[#ffe500] font-black uppercase tracking-wider text-[11px]">MASTER ADMIN ACTIVE:</span>
+            <span className="font-mono text-blue-100 font-bold bg-blue-900/60 px-2 py-0.5 rounded text-[11px] border border-blue-700/50">{user?.email || 'Super Admin'}</span>
+            <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-400/40 font-semibold">
               Google Auth Verified
             </span>
           </div>
           <div className="flex items-center gap-3">
             <button
               onClick={() => setAdminPanelOpen(true)}
-              className="bg-yellow-400 hover:bg-yellow-300 text-gray-950 font-black px-3.5 py-1 rounded text-xs shadow-md transition transform hover:scale-105 cursor-pointer flex items-center gap-1.5"
+              className="bg-[#ffe500] hover:bg-yellow-400 text-blue-950 font-black px-3.5 py-1 rounded text-xs shadow-md transition transform hover:scale-105 cursor-pointer flex items-center gap-1.5"
             >
               <span>👑 Open Admin Command Center</span>
             </button>

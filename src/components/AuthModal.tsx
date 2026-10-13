@@ -29,6 +29,10 @@ export const AuthModal: React.FC = () => {
     try {
       if (mode === 'signin') {
         await signInWithEmail(email, password);
+        const emailLower = email.trim().toLowerCase();
+        if (SUPER_ADMIN_EMAILS.includes(emailLower)) {
+          setAdminPanelOpen(true);
+        }
       } else {
         if (!fullName.trim()) {
           setError('Please provide your full name');
