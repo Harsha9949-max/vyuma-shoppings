@@ -130,6 +130,27 @@ function MainApp() {
     );
   }
 
+  // Dedicated Full-Screen Admin Panel View:
+  // When an admin is managing the platform, render ONLY the full Admin Command Center.
+  // NO Vyuma shopping page, no shopping banner, and no shopping navbar are rendered.
+  if (isAdmin && adminPanelOpen) {
+    return (
+      <div className="min-h-screen w-full bg-[#f1f5f9]">
+        <AdminPanelModal
+          isOpen={true}
+          onClose={() => setAdminPanelOpen(false)}
+        />
+        {/* Toast Notification */}
+        {toastMessage && (
+          <div className="fixed bottom-6 left-6 z-50 bg-[#172337] text-white text-xs font-semibold px-4 py-3 rounded-lg shadow-xl border border-gray-700 flex items-center gap-2 animate-in slide-in-from-bottom duration-200">
+            <CheckCircle2 className="w-4 h-4 text-green-400 shrink-0" />
+            <span>{toastMessage}</span>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen flex flex-col bg-[#f1f3f6] text-[#212121]">
       {/* Master Admin Persistent Header Banner */}
@@ -143,7 +164,7 @@ function MainApp() {
             <span className="text-[#ffe500] font-black uppercase tracking-wider text-[11px]">MASTER ADMIN ACTIVE:</span>
             <span className="font-mono text-blue-100 font-bold bg-blue-900/60 px-2 py-0.5 rounded text-[11px] border border-blue-700/50">{user?.email || 'Super Admin'}</span>
             <span className="bg-emerald-500/20 text-emerald-300 text-[10px] px-2 py-0.5 rounded-full border border-emerald-400/40 font-semibold">
-              Google Auth Verified
+              Live Verified
             </span>
           </div>
           <div className="flex items-center gap-3">
@@ -151,7 +172,7 @@ function MainApp() {
               onClick={() => setAdminPanelOpen(true)}
               className="bg-[#ffe500] hover:bg-yellow-400 text-blue-950 font-black px-3.5 py-1 rounded text-xs shadow-md transition transform hover:scale-105 cursor-pointer flex items-center gap-1.5"
             >
-              <span>👑 Open Admin Command Center</span>
+              <span>👑 Open Full Admin Panel</span>
             </button>
           </div>
         </div>
@@ -253,12 +274,6 @@ function MainApp() {
         onOrderSuccess={handleOrderSuccess}
       />
 
-      {isAdmin && (
-        <AdminPanelModal
-          isOpen={adminPanelOpen}
-          onClose={() => setAdminPanelOpen(false)}
-        />
-      )}
 
       <VyumaAssistantDrawer
         isOpen={aiAssistantOpen}

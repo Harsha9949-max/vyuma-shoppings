@@ -47,6 +47,7 @@ import {
   MessageSquare,
   BarChart3,
   Layers,
+  LogOut,
 } from 'lucide-react';
 import { useAuth, SUPER_ADMIN_EMAILS } from '../context/AuthContext';
 import { auth } from '../firebase/config';
@@ -72,7 +73,7 @@ interface AdminPanelModalProps {
 }
 
 export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClose }) => {
-  const { user, isAdmin } = useAuth();
+  const { user, isAdmin, logout } = useAuth();
   const {
     products,
     allOrders,
@@ -552,32 +553,32 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-2 sm:p-4 overflow-y-auto">
-      <div className="relative w-full max-w-7xl bg-white text-gray-900 rounded-2xl shadow-2xl overflow-hidden my-2 border border-gray-200 flex flex-col h-[94vh] animate-in fade-in zoom-in-95 duration-150">
+    <div className="min-h-screen w-full flex flex-col bg-[#f1f5f9] text-gray-900 fixed inset-0 z-50 overflow-hidden">
+      <div className="w-full bg-white text-gray-900 flex flex-col flex-1 h-full overflow-hidden">
         
         {/* Top Executive Header Bar */}
-        <div className="bg-gradient-to-r from-[#172337] via-[#1a3f7a] to-[#2874f0] px-6 py-3.5 border-b border-blue-900/40 flex items-center justify-between text-white shrink-0 shadow-sm">
+        <div className="bg-gradient-to-r from-[#172337] via-[#1a3f7a] to-[#2874f0] px-4 sm:px-6 py-3 border-b border-blue-900/40 flex items-center justify-between text-white shrink-0 shadow-sm">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#ffe500] text-blue-950 flex items-center justify-center font-black shadow-md">
+            <div className="w-10 h-10 rounded-xl bg-[#ffe500] text-blue-950 flex items-center justify-center font-black shadow-md shrink-0">
               <Shield className="w-5 h-5 fill-blue-950" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="font-black text-base sm:text-lg tracking-wide text-white">
+                <h1 className="font-black text-sm sm:text-base tracking-wide text-white">
                   VYUMA ENTERPRISE CONTROL CENTER
                 </h1>
-                <span className="text-[10px] bg-[#ffe500] text-blue-950 font-black px-2.5 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
+                <span className="text-[10px] bg-[#ffe500] text-blue-950 font-black px-2 py-0.5 rounded-full uppercase tracking-wider shadow-xs">
                   SUPER ADMIN
                 </span>
               </div>
               <p className="text-[11px] text-blue-100 flex items-center gap-2">
                 <span>Centrally Managed Marketplace • Firestore Live Sync •</span>
-                <span className="font-mono text-yellow-300 font-bold">{emailLower}</span>
+                <span className="font-mono text-yellow-300 font-bold">{user?.email || emailLower}</span>
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             {/* Quick Catalog Seed Action */}
             {products.length === 0 && (
               <button
@@ -589,12 +590,24 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
               </button>
             )}
 
+            {/* View Storefront Action Button */}
             <button
               onClick={onClose}
-              className="p-1.5 hover:bg-white/15 rounded-full text-white/80 hover:text-white transition cursor-pointer"
-              title="Close Admin Panel"
+              className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-lg border border-white/20 transition flex items-center gap-1.5 cursor-pointer shadow-xs"
+              title="Open customer shopping storefront"
             >
-              <X className="w-5 h-5" />
+              <Eye className="w-3.5 h-3.5 text-yellow-300" />
+              <span>Preview Storefront</span>
+            </button>
+
+            {/* Admin Logout */}
+            <button
+              onClick={() => logout()}
+              className="bg-red-500/20 hover:bg-red-500/30 text-red-200 border border-red-400/30 font-semibold text-xs px-3 py-1.5 rounded-lg transition flex items-center gap-1.5 cursor-pointer"
+              title="Sign out from Admin Panel"
+            >
+              <LogOut className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Logout</span>
             </button>
           </div>
         </div>
@@ -690,10 +703,19 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
               })}
             </div>
 
-            <div className="p-3 border-t border-gray-200 text-[11px] text-gray-500 space-y-1">
-              <p>Platform: <strong>VYUMA Retail</strong></p>
-              <p>Database: <strong>Firebase Cloud</strong></p>
-              <p>Security: <strong>Super Admin Active</strong></p>
+            <div className="p-3 border-t border-gray-200 text-[11px] text-gray-500 space-y-2">
+              <button
+                onClick={onClose}
+                className="w-full flex items-center justify-center gap-1.5 bg-blue-50 hover:bg-blue-100 text-[#2874f0] font-bold py-1.5 rounded text-xs transition cursor-pointer"
+              >
+                <Eye className="w-3.5 h-3.5" />
+                <span>Preview Storefront</span>
+              </button>
+              <div className="text-[10px] space-y-0.5 pt-1 text-gray-400">
+                <p>Platform: <strong>VYUMA Retail Enterprise</strong></p>
+                <p>Sync: <strong className="text-emerald-600">Firestore Live</strong></p>
+                <p className="truncate">Admin: <strong className="text-gray-700">{user?.email || emailLower}</strong></p>
+              </div>
             </div>
           </div>
 
