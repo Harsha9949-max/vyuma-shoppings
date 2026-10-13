@@ -12,8 +12,11 @@ import {
   Sparkles,
   CheckCircle2,
   Send,
+  AlertCircle,
+  Percent,
+  CreditCard,
 } from 'lucide-react';
-import { Product, Review } from '../types';
+import { Product, ProductVariant, Review } from '../types';
 import { useShop } from '../context/ShopContext';
 import { useAuth } from '../context/AuthContext';
 import { subscribeToReviews, addReviewToFirestore } from '../firebase/services';
@@ -31,13 +34,31 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
   onBuyNow,
   onOpenAiAssistantWithContext,
 }) => {
-  const { addToCart, toggleWishlist, isWishlisted, showToast } = useShop();
+  const {
+    addToCart,
+    toggleWishlist,
+    isWishlisted,
+    showToast,
+    checkPincodeServiceability,
+    coupons,
+    deliveryPincode,
+    setDeliveryPincode,
+  } = useShop();
   const { user, setAuthModalOpen } = useAuth();
   const wishlisted = isWishlisted(product.id);
 
   const [activeImage, setActiveImage] = useState<string>(product.images[0] || product.image);
-  const [pincodeCheck, setPincodeCheck] = useState('');
-  const [pincodeStatus, setPincodeStatus] = useState<string | null>(null);
+  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(product.variants?.[0] || null);
+
+  // Pincode state
+  const defaultPin = deliveryPincode || '733093';
+  const [pincodeCheck, setPincodeCheck] = useState(defaultPin);
+  const [pincodeResult, setPincodeResult] = useState<{
+    serviceable: boolean;
+    estimatedDays: string;
+    codAvailable: boolean;
+    city: string;
+  } | null>(() => checkPincodeServiceability(defaultPin));
 
   // Reviews state from Firestore
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -49,19 +70,32 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
   useEffect(() => {
     setActiveImage(product.images[0] || product.image);
+    setSelectedVariant(product.variants?.[0] || null);
+    const activePin = deliveryPincode || pincodeCheck || '733093';
+    setPincodeResult(checkPincodeServiceability(activePin));
+
     // Subscribe to reviews in Firestore
     const unsub = subscribeToReviews(product.id, (revs) => {
       setReviews(revs);
     });
     return () => unsub();
-  }, [product]);
+  }, [product, deliveryPincode]);
+
+  const currentPrice = selectedVariant ? selectedVariant.price : product.price;
+  const currentOriginalPrice = selectedVariant ? selectedVariant.originalPrice : product.originalPrice;
+  const currentStock = selectedVariant ? selectedVariant.stockCount : product.stockCount;
+  const discountPercent =
+    currentOriginalPrice > currentPrice
+      ? Math.round(((currentOriginalPrice - currentPrice) / currentOriginalPrice) * 100)
+      : 0;
 
   const handlePincodeSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (pincodeCheck.trim().length === 6) {
-      setPincodeStatus(`Available! Delivery to ${pincodeCheck} by ${product.fastDelivery}`);
-    } else {
-      setPincodeStatus('Please enter a valid 6-digit Indian PIN Code');
+    const res = checkPincodeServiceability(pincodeCheck);
+    setPincodeResult(res);
+    if (res.serviceable) {
+      setDeliveryPincode(pincodeCheck);
+      showToast(`Pincode ${pincodeCheck} verified: ${res.city}`);
     }
   };
 
@@ -141,7 +175,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <button
                     key={idx}
                     onClick={() => setActiveImage(img)}
-                    className={`w-16 h-16 p-1 rounded-md border transition overflow-hidden cursor-pointer ${
+                    className={`w-16 h-16 p-1 rounded-lg border transition overflow-hidden cursor-pointer ${
                       activeImage === img
                         ? 'border-[#2874f0] ring-2 ring-blue-100'
                         : 'border-gray-200 hover:border-gray-400'
@@ -158,24 +192,24 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             )}
 
             {/* Main Stage Image */}
-            <div className="flex-1 h-96 relative border border-gray-100 rounded-lg p-6 flex items-center justify-center bg-white group">
+            <div className="flex-1 h-96 relative border border-gray-100 rounded-xl p-6 flex items-center justify-center bg-white group">
               <img
                 src={activeImage}
                 alt={product.title}
-                className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-110"
+                className="max-h-full max-w-full object-contain transition-transform duration-300 group-hover:scale-105"
               />
 
               {/* Wishlist Button */}
               <button
                 onClick={() => toggleWishlist(product)}
-                className={`absolute top-4 right-4 p-2 rounded-full border shadow-xs transition ${
+                className={`absolute top-4 right-4 p-2.5 rounded-full border shadow-xs transition cursor-pointer ${
                   wishlisted
-                    ? 'bg-red-50 border-red-200 text-red-500'
-                    : 'bg-white border-gray-200 text-gray-400 hover:text-red-500 hover:bg-gray-50'
+                    ? 'bg-rose-50 border-rose-200 text-rose-500'
+                    : 'bg-white border-gray-200 text-gray-400 hover:text-rose-500 hover:bg-gray-50'
                 }`}
                 title={wishlisted ? 'Remove from Wishlist' : 'Add to Wishlist'}
               >
-                <Heart className={`w-5 h-5 ${wishlisted ? 'fill-red-500' : ''}`} />
+                <Heart className={`w-5 h-5 ${wishlisted ? 'fill-rose-500 text-rose-500' : ''}`} />
               </button>
             </div>
           </div>
@@ -183,16 +217,16 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* Action CTAs: Add to Cart & Buy Now */}
           <div className="grid grid-cols-2 gap-3 mt-auto">
             <button
-              onClick={() => addToCart(product, 1)}
-              className="bg-[#ff9f00] hover:bg-[#f29600] text-white py-3.5 px-4 rounded font-bold text-sm tracking-wide shadow-md transition flex items-center justify-center gap-2 cursor-pointer uppercase"
+              onClick={() => addToCart(product, 1, selectedVariant || undefined)}
+              className="bg-[#ff9f00] hover:bg-[#f29600] text-white py-3.5 px-4 rounded-lg font-bold text-sm tracking-wide shadow-md transition flex items-center justify-center gap-2 cursor-pointer uppercase"
             >
               <ShoppingCart className="w-4 h-4 fill-white" />
               <span>Add to Cart</span>
             </button>
 
             <button
-              onClick={() => onBuyNow(product)}
-              className="bg-[#fb641b] hover:bg-[#e85b16] text-white py-3.5 px-4 rounded font-bold text-sm tracking-wide shadow-md transition flex items-center justify-center gap-2 cursor-pointer uppercase"
+              onClick={() => onBuyNow({ ...product, price: currentPrice, originalPrice: currentOriginalPrice })}
+              className="bg-[#fb641b] hover:bg-[#e85b16] text-white py-3.5 px-4 rounded-lg font-bold text-sm tracking-wide shadow-md transition flex items-center justify-center gap-2 cursor-pointer uppercase"
             >
               <Zap className="w-4 h-4 fill-white" />
               <span>Buy Now</span>
@@ -231,72 +265,105 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   <Star className="w-3 h-3 fill-white" />
                 </div>
                 <span className="text-xs text-gray-500 font-medium">
-                  {product.ratingCount} Ratings
+                  {product.ratingCount.toLocaleString()} Ratings & {product.reviewCount} Reviews
                 </span>
               </>
             ) : (
               <span className="text-xs text-gray-400 font-medium">
-                No reviews yet. Be the first to review this product!
+                Verified genuine stock
               </span>
             )}
 
             {product.isAssured && (
-              <span className="ml-2 text-xs font-extrabold italic text-[#2874f0] bg-blue-50 px-2 py-0.5 rounded border border-blue-200 flex items-center gap-1">
+              <span className="text-xs font-extrabold italic text-[#2874f0] bg-blue-50 px-2 py-0.5 rounded border border-blue-200 flex items-center gap-1">
                 VYUMA <span className="text-[#ffe500] font-black">★</span> Assured
               </span>
             )}
           </div>
 
-          {/* Pricing */}
-          <div className="p-4 bg-gray-50 rounded-lg border border-gray-100 flex flex-wrap items-baseline gap-3">
-            <span className="text-2xl sm:text-3xl font-black text-gray-900">
-              ₹{product.price.toLocaleString('en-IN')}
-            </span>
-            {product.originalPrice > product.price && (
-              <>
-                <span className="text-sm text-gray-400 line-through">
-                  ₹{product.originalPrice.toLocaleString('en-IN')}
-                </span>
-                <span className="text-sm font-bold text-green-700">
-                  {product.discountPercent}% off
-                </span>
-              </>
+          {/* Pricing Box */}
+          <div className="p-4 bg-gray-50 rounded-xl border border-gray-100 space-y-1.5">
+            <div className="flex flex-wrap items-baseline gap-3">
+              <span className="text-2xl sm:text-3xl font-black text-gray-900">
+                ₹{currentPrice.toLocaleString('en-IN')}
+              </span>
+              {currentOriginalPrice > currentPrice && (
+                <>
+                  <span className="text-sm text-gray-400 line-through">
+                    ₹{currentOriginalPrice.toLocaleString('en-IN')}
+                  </span>
+                  <span className="text-sm font-black text-green-700">
+                    {discountPercent}% off
+                  </span>
+                </>
+              )}
+            </div>
+            <p className="text-xs text-gray-500">
+              Inclusive of all taxes. Free express shipping on this order.
+            </p>
+
+            {/* Low stock notice */}
+            {currentStock <= 10 && currentStock > 0 && (
+              <div className="pt-2 flex items-center gap-1.5 text-xs text-amber-700 font-bold">
+                <AlertCircle className="w-4 h-4 text-amber-600" />
+                <span>Hurry, only {currentStock} units left in stock!</span>
+              </div>
             )}
-            <span className="w-full text-xs text-gray-500">
-              Inclusive of all taxes. Free shipping on this order.
-            </span>
           </div>
 
-          {/* Payment & Store Guarantees */}
+          {/* Variants Selector (if applicable) */}
+          {product.variants && product.variants.length > 0 && (
+            <div className="space-y-2 pt-1">
+              <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
+                Select Option / Configuration:
+              </h4>
+              <div className="flex flex-wrap gap-2">
+                {product.variants.map((v) => {
+                  const isSelected = selectedVariant?.id === v.id;
+                  return (
+                    <button
+                      key={v.id}
+                      type="button"
+                      onClick={() => setSelectedVariant(v)}
+                      className={`px-3 py-2 rounded-lg text-xs font-bold border transition cursor-pointer ${
+                        isSelected
+                          ? 'border-[#2874f0] bg-blue-50/80 text-[#2874f0] ring-2 ring-blue-100'
+                          : 'border-gray-200 bg-white text-gray-700 hover:border-gray-300'
+                      }`}
+                    >
+                      {v.name} • ₹{v.price.toLocaleString('en-IN')}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Available Offers & Promos Accordion */}
           <div className="space-y-2">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide">
-              Payment & Security
+              Available Deals & Coupons
             </h4>
-            <div className="space-y-1.5 text-xs text-gray-700">
-              <div className="flex items-start gap-2">
-                <Tag className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Razorpay Gateway:</strong> Encrypted payments via UPI, Credit/Debit Cards, and NetBanking.
-                </span>
+            <div className="space-y-2 text-xs">
+              <div className="p-2.5 bg-emerald-50/60 rounded-lg border border-emerald-200 flex items-start gap-2 text-emerald-900">
+                <Tag className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Special Promo:</span> Use code <strong className="font-mono text-emerald-700">VYUMA100</strong> for Flat ₹100 Off on orders above ₹999.
+                </div>
               </div>
-              <div className="flex items-start gap-2">
-                <Tag className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Firebase Real-time Sync:</strong> Instant order placement and database tracking.
-                </span>
-              </div>
-              <div className="flex items-start gap-2">
-                <Tag className="w-3.5 h-3.5 text-green-600 shrink-0 mt-0.5" />
-                <span>
-                  <strong>Direct Delivery:</strong> Dispatched with delivery by {product.fastDelivery}.
-                </span>
+
+              <div className="p-2.5 bg-blue-50/60 rounded-lg border border-blue-200 flex items-start gap-2 text-blue-900">
+                <CreditCard className="w-4 h-4 text-[#2874f0] shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-bold">Bank Offer:</span> 10% Instant Discount on All Major Credit & Debit Cards via Razorpay.
+                </div>
               </div>
             </div>
           </div>
 
           {/* Vyuma AI Advisor Trigger */}
-          <div className="p-3 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 flex items-center justify-between">
-            <div className="flex items-center gap-2">
+          <div className="p-3.5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl border border-blue-200 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
               <Sparkles className="w-5 h-5 text-[#2874f0]" />
               <div>
                 <p className="text-xs font-bold text-blue-900">Have questions about this item?</p>
@@ -305,7 +372,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
             </div>
             <button
               onClick={() => onOpenAiAssistantWithContext(product)}
-              className="bg-[#2874f0] hover:bg-blue-600 text-white text-xs font-bold px-3 py-1.5 rounded transition cursor-pointer"
+              className="bg-[#2874f0] hover:bg-blue-600 text-white text-xs font-bold px-3.5 py-1.5 rounded-lg transition cursor-pointer shadow-xs"
             >
               Ask AI ✨
             </button>
@@ -314,7 +381,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           {/* Pincode & Delivery check */}
           <div className="border-t border-gray-100 pt-4">
             <h4 className="text-xs font-bold text-gray-900 uppercase tracking-wide mb-2">
-              Delivery Options
+              Delivery & Serviceability Check
             </h4>
             <form onSubmit={handlePincodeSubmit} className="flex items-center gap-2 max-w-sm">
               <input
@@ -323,20 +390,35 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 value={pincodeCheck}
                 onChange={(e) => setPincodeCheck(e.target.value)}
                 placeholder="Enter 6-digit Pincode"
-                className="w-full text-xs px-3 py-2 border border-gray-300 rounded focus:outline-none focus:border-[#2874f0]"
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-[#2874f0]"
               />
               <button
                 type="submit"
-                className="bg-[#2874f0] text-white text-xs font-bold px-4 py-2 rounded hover:bg-blue-600 transition cursor-pointer shrink-0"
+                className="bg-[#2874f0] text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-blue-600 transition cursor-pointer shrink-0"
               >
                 Check
               </button>
             </form>
-            {pincodeStatus && (
-              <p className="text-xs text-green-700 font-medium mt-1 flex items-center gap-1">
-                <CheckCircle2 className="w-3.5 h-3.5" />
-                {pincodeStatus}
-              </p>
+
+            {pincodeResult && (
+              <div className="mt-2 text-xs space-y-1">
+                {pincodeResult.serviceable ? (
+                  <>
+                    <p className="text-emerald-700 font-bold flex items-center gap-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      Serviceable to {pincodeResult.city} ({pincodeCheck})
+                    </p>
+                    <p className="text-gray-600">
+                      Estimated Delivery: <strong>{pincodeResult.estimatedDays}</strong> • Free Shipping
+                    </p>
+                    <p className="text-gray-500 text-[11px]">
+                      Cash on Delivery: {pincodeResult.codAvailable ? 'Available' : 'Prepaid Only'}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-rose-600 font-medium">Please enter a valid 6-digit Indian PIN code.</p>
+                )}
+              </div>
             )}
           </div>
 
@@ -344,7 +426,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
           <div className="grid grid-cols-3 gap-2 py-3 border-y border-gray-100 text-center">
             <div className="flex flex-col items-center">
               <Truck className="w-5 h-5 text-[#2874f0] mb-1" />
-              <span className="text-[11px] font-semibold text-gray-800">Free Delivery</span>
+              <span className="text-[11px] font-semibold text-gray-800">Free Express Delivery</span>
               <span className="text-[10px] text-gray-500">{product.fastDelivery}</span>
             </div>
             <div className="flex flex-col items-center">
@@ -407,7 +489,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
 
           <button
             onClick={() => setShowReviewForm(!showReviewForm)}
-            className="bg-[#2874f0] hover:bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-sm shadow-xs transition cursor-pointer"
+            className="bg-[#2874f0] hover:bg-blue-600 text-white font-bold text-xs px-4 py-2 rounded-lg shadow-xs transition cursor-pointer"
           >
             {showReviewForm ? 'Cancel Review' : 'Rate Product'}
           </button>
@@ -417,7 +499,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
         {showReviewForm && (
           <form
             onSubmit={handleReviewSubmit}
-            className="bg-blue-50/50 border border-blue-200 rounded-lg p-4 mb-6 space-y-3"
+            className="bg-blue-50/50 border border-blue-200 rounded-xl p-4 mb-6 space-y-3"
           >
             <h4 className="text-sm font-bold text-blue-900">Write a Review for this Product</h4>
             
@@ -452,7 +534,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 value={reviewHeadline}
                 onChange={(e) => setReviewHeadline(e.target.value)}
                 placeholder="e.g. Highly Recommended! Value for money."
-                className="w-full text-xs px-3 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:border-[#2874f0]"
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:border-[#2874f0]"
               />
             </div>
 
@@ -464,14 +546,14 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 value={reviewComment}
                 onChange={(e) => setReviewComment(e.target.value)}
                 placeholder="Tell us what you liked or disliked about this product..."
-                className="w-full text-xs px-3 py-2 border border-gray-300 rounded bg-white focus:outline-none focus:border-[#2874f0]"
+                className="w-full text-xs px-3 py-2 border border-gray-300 rounded-lg bg-white focus:outline-none focus:border-[#2874f0]"
               />
             </div>
 
             <button
               type="submit"
               disabled={isSubmittingReview}
-              className="bg-[#fb641b] hover:bg-[#e85b16] text-white text-xs font-bold px-5 py-2 rounded flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              className="bg-[#fb641b] hover:bg-[#e85b16] text-white text-xs font-bold px-5 py-2.5 rounded-lg flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
             >
               <Send className="w-3.5 h-3.5" />
               <span>{isSubmittingReview ? 'Submitting...' : 'Submit Review'}</span>
@@ -495,7 +577,7 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                 <div className="flex items-center gap-3 text-[11px] text-gray-400">
                   <span className="font-medium text-gray-600">{rev.userName}</span>
                   {rev.verifiedPurchase && (
-                    <span className="text-green-700 flex items-center gap-1">
+                    <span className="text-green-700 flex items-center gap-1 font-semibold">
                       <CheckCircle2 className="w-3 h-3" /> Certified Buyer
                     </span>
                   )}

@@ -29,6 +29,8 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
     cartFinalPayable,
     cartTotalSavings,
     placeOrder,
+    deliveryPincode,
+    checkPincodeServiceability,
   } = useShop();
 
   const { addresses, addAddress, selectedAddress, setSelectedAddress, user, setAuthModalOpen } = useAuth();
@@ -44,9 +46,9 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
 
   // Address form modal/toggle
   const [isAddingAddress, setIsAddingAddress] = useState(false);
-  const [newName, setNewName] = useState('');
+  const [newName, setNewName] = useState(user?.displayName || '');
   const [newMobile, setNewMobile] = useState('');
-  const [newPincode, setNewPincode] = useState('');
+  const [newPincode, setNewPincode] = useState(deliveryPincode || '733093');
   const [newAddressLine, setNewAddressLine] = useState('');
   const [newCity, setNewCity] = useState('');
   const [newState, setNewState] = useState('');
@@ -59,6 +61,40 @@ export const CheckoutModal: React.FC<CheckoutModalProps> = ({
       setIsAddingAddress(false);
     }
   }, [addresses.length]);
+
+  // Auto-resolve City & State when 6-digit PIN is entered
+  useEffect(() => {
+    const pin = newPincode.trim();
+    if (pin.length === 6) {
+      const res = checkPincodeServiceability(pin);
+      if (res.serviceable) {
+        if (!newCity || newCity === 'Raiganj' || newCity === 'Bengaluru' || newCity === 'Delhi') {
+          if (pin.startsWith('733')) {
+            setNewCity('Raiganj');
+            setNewState('West Bengal');
+          } else if (pin.startsWith('734')) {
+            setNewCity('Siliguri');
+            setNewState('West Bengal');
+          } else if (pin.startsWith('700') || pin.startsWith('711')) {
+            setNewCity('Kolkata');
+            setNewState('West Bengal');
+          } else if (pin.startsWith('560')) {
+            setNewCity('Bengaluru');
+            setNewState('Karnataka');
+          } else if (pin.startsWith('110') || pin.startsWith('122')) {
+            setNewCity('New Delhi');
+            setNewState('Delhi');
+          } else if (pin.startsWith('400')) {
+            setNewCity('Mumbai');
+            setNewState('Maharashtra');
+          } else {
+            setNewCity('District Centre');
+            setNewState('India');
+          }
+        }
+      }
+    }
+  }, [newPincode]);
 
   if (!isOpen) return null;
 
