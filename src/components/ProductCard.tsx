@@ -62,14 +62,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, onSelect }) =
         </h3>
 
         {/* Ratings & Vyuma Assured */}
-        <div className="flex items-center gap-2 mb-2">
-          <div className="flex items-center gap-1 bg-[#388e3c] text-white text-[11px] font-bold px-1.5 py-0.5 rounded">
-            <span>{product.rating}</span>
-            <Star className="w-2.5 h-2.5 fill-white" />
-          </div>
-          <span className="text-[11px] text-gray-500">
-            ({product.ratingCount >= 1000 ? `${(product.ratingCount / 1000).toFixed(1)}k` : product.ratingCount})
-          </span>
+        <div className="flex items-center gap-2 mb-2 min-h-[22px]">
+          {product.rating > 0 && product.ratingCount > 0 ? (
+            <>
+              <div className="flex items-center gap-1 bg-[#388e3c] text-white text-[11px] font-bold px-1.5 py-0.5 rounded">
+                <span>{product.rating}</span>
+                <Star className="w-2.5 h-2.5 fill-white" />
+              </div>
+              <span className="text-[11px] text-gray-500">
+                ({product.ratingCount})
+              </span>
+            </>
+          ) : (
+            <span className="text-[11px] text-gray-500 font-medium bg-gray-50 px-1.5 py-0.5 rounded border border-gray-100">
+              Verified Stock
+            </span>
+          )}
 
           {product.isAssured && (
             <span className="text-[10px] font-extrabold italic text-[#2874f0] ml-auto flex items-center gap-0.5">

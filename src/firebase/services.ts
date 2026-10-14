@@ -23,6 +23,7 @@ import {
   AuditLog,
   AutomationRule,
   StockMovement,
+  UserProfile,
 } from '../types';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
 
@@ -63,7 +64,7 @@ export const DEFAULT_COUPONS: Coupon[] = [
     minOrderValue: 999,
     validUntil: Date.now() + 30 * 24 * 60 * 60 * 1000,
     usageLimit: 5000,
-    usedCount: 248,
+    usedCount: 0,
     isActive: true,
     description: 'Flat ₹100 Off on orders above ₹999 across all categories',
   },
@@ -76,7 +77,7 @@ export const DEFAULT_COUPONS: Coupon[] = [
     maxDiscountCap: 250,
     validUntil: Date.now() + 60 * 24 * 60 * 60 * 1000,
     usageLimit: 10000,
-    usedCount: 812,
+    usedCount: 0,
     isActive: true,
     description: '10% Off up to ₹250 on orders above ₹499 for new shoppers',
   },
@@ -88,7 +89,7 @@ export const DEFAULT_COUPONS: Coupon[] = [
     minOrderValue: 0,
     validUntil: Date.now() + 90 * 24 * 60 * 60 * 1000,
     usageLimit: 2000,
-    usedCount: 140,
+    usedCount: 0,
     isActive: true,
     description: 'Free Shipping on your order (waives standard delivery fee)',
   },
@@ -100,7 +101,7 @@ export const DEFAULT_COUPONS: Coupon[] = [
     minOrderValue: 2499,
     validUntil: Date.now() + 15 * 24 * 60 * 60 * 1000,
     usageLimit: 1000,
-    usedCount: 95,
+    usedCount: 0,
     isActive: true,
     description: 'Festive Bumper: Flat ₹500 Off on orders above ₹2,499',
   },
@@ -113,7 +114,7 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
     trigger: 'LOW_STOCK',
     action: 'ALERT_ADMIN',
     isActive: true,
-    executionCount: 14,
+    executionCount: 0,
     description: 'When stock drops below 5 units, trigger high-priority alert in Admin Dashboard.',
   },
   {
@@ -122,7 +123,7 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
     trigger: 'ORDER_PAID',
     action: 'AUTO_CONFIRM',
     isActive: true,
-    executionCount: 128,
+    executionCount: 0,
     description: 'Advance verified prepaid orders immediately into PACKED consignment status.',
   },
   {
@@ -131,7 +132,7 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
     trigger: 'ORDER_SHIPPED',
     action: 'SEND_EMAIL',
     isActive: true,
-    executionCount: 96,
+    executionCount: 0,
     description: 'Dispatch tracking number and courier link via transactional notification.',
   },
   {
@@ -140,7 +141,7 @@ export const DEFAULT_AUTOMATION_RULES: AutomationRule[] = [
     trigger: 'REFUND_APPROVED',
     action: 'UPDATE_LEDGER',
     isActive: true,
-    executionCount: 6,
+    executionCount: 0,
     description: 'Deduct returned value from platform earnings and credit customer account.',
   },
 ];
@@ -780,5 +781,87 @@ export async function logStockMovement(movement: Omit<StockMovement, 'id' | 'tim
     await setDoc(doc(db, STOCK_MOVEMENTS_COLLECTION, item.id), item);
   } catch (err) {
     console.warn('logStockMovement error:', err);
+  }
+}
+
+/**
+ * Real-time subscription to all registered users in Firebase Firestore
+ */
+export function subscribeToAllUsers(onUpdate: (users: UserProfile[]) => void) {
+  try {
+    const colRef = collection(db, USERS_COLLECTION);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        const list: UserProfile[] = [];
+        snapshot.forEach((d) => {
+          const data = d.data();
+          list.push({
+            uid: data.uid || d.id,
+            email: data.email || null,
+            displayName: data.displayName || null,
+            photoURL: data.photoURL || null,
+            phoneNumber: data.phoneNumber || undefined,
+            role: data.role || 'customer',
+            walletBalance: data.walletBalance || 0,
+          });
+        });
+        onUpdate(list);
+      },
+      (err) => {
+        console.warn('subscribeToAllUsers warning:', err);
+      }
+    );
+  } catch {
+    return () => {};
+  }
+}
+
+/**
+ * Save / Upsert user profile to Firestore users collection
+ */
+export async function saveUserProfileToFirestore(user: UserProfile): Promise<void> {
+  try {
+    const ref = doc(db, USERS_COLLECTION, user.uid);
+    await setDoc(ref, {
+      uid: user.uid,
+      email: user.email,
+      displayName: user.displayName,
+      photoURL: user.photoURL,
+      phoneNumber: user.phoneNumber || null,
+      role: user.role || 'customer',
+      walletBalance: user.walletBalance || 0,
+      updatedAt: Date.now(),
+    }, { merge: true });
+  } catch (err) {
+    console.error('saveUserProfileToFirestore error:', err);
+    throw err;
+  }
+}
+
+/**
+ * Fetch one-time list of all users from Firestore
+ */
+export async function fetchUsersFromFirestore(): Promise<UserProfile[]> {
+  try {
+    const colRef = collection(db, USERS_COLLECTION);
+    const snap = await getDocs(colRef);
+    const list: UserProfile[] = [];
+    snap.forEach((d) => {
+      const data = d.data();
+      list.push({
+        uid: data.uid || d.id,
+        email: data.email || null,
+        displayName: data.displayName || null,
+        photoURL: data.photoURL || null,
+        phoneNumber: data.phoneNumber || undefined,
+        role: data.role || 'customer',
+        walletBalance: data.walletBalance || 0,
+      });
+    });
+    return list;
+  } catch (err) {
+    console.warn('fetchUsersFromFirestore warning:', err);
+    return [];
   }
 }

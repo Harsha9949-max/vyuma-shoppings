@@ -15,6 +15,7 @@ import {
   saveUserAddressToFirestore,
   deleteUserAddressFromFirestore,
 } from '../firebase/services';
+import { syncUserToBothBackends } from '../services/dualBackendCoordinator';
 
 export const MASTER_ADMIN_EMAIL = 'marateyh@gmail.com';
 export const SUPER_ADMIN_EMAILS = [
@@ -88,27 +89,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           setAdminPanelOpen(true);
         }
 
-        // Background sync to Firestore users collection
+        // Perfect Dual-Backend Coordination: Sync user simultaneously to Firestore & Supabase
         try {
           const userDocRef = doc(db, 'users', fbUser.uid);
           const snap = await getDoc(userDocRef);
+          let finalRole: UserProfile['role'] = isMaster ? 'admin' : 'customer';
+
           if (snap.exists()) {
             const data = snap.data();
-            const resolvedRole = isMaster ? 'admin' : (data.role || 'customer');
-            setUser((prev) => (prev ? { ...prev, role: resolvedRole } : initialProfile));
+            finalRole = isMaster ? 'admin' : (data.role || 'customer');
+            setUser((prev) => (prev ? { ...prev, role: finalRole } : initialProfile));
           } else {
             await setDoc(userDocRef, {
               uid: fbUser.uid,
               email: fbUser.email,
               displayName: fbUser.displayName,
               photoURL: fbUser.photoURL,
-              role: isMaster ? 'admin' : 'customer',
+              role: finalRole,
               provider: hasGoogleProvider ? 'google' : 'password',
               createdAt: Date.now(),
             });
           }
+
+          // Maintain and increment user across both backends
+          syncUserToBothBackends({
+            uid: fbUser.uid,
+            email: fbUser.email,
+            displayName: fbUser.displayName || initialProfile.displayName,
+            photoURL: fbUser.photoURL,
+            role: finalRole,
+          }).catch((err) => console.log('Dual-backend user sync deferred:', err?.message));
         } catch (e) {
-          console.warn('Firestore user profile sync notice:', e);
+          console.warn('User profile sync notice:', e);
         }
       } else {
         setUser(null);
@@ -202,26 +214,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const res = await createUserWithEmailAndPassword(auth, email, pass);
       await updateProfile(res.user, { displayName: name });
 
-      try {
-        await setDoc(doc(db, 'users', res.user.uid), {
-          uid: res.user.uid,
-          email: res.user.email,
-          displayName: name,
-          role: 'customer',
-          provider: 'password',
-          createdAt: Date.now(),
-        });
-      } catch (err) {
-        console.warn('Could not write user profile doc:', err);
-      }
-
-      setUser({
+      const newProfile: UserProfile = {
         uid: res.user.uid,
         email: res.user.email,
         displayName: name,
         photoURL: null,
         role: 'customer',
+      };
+
+      // Dual-backend user registration replication
+      syncUserToBothBackends(newProfile).catch((err) => {
+        console.log('Dual-backend new user sync notice:', err?.message);
       });
+
+      setUser(newProfile);
       setAuthModalOpen(false);
     } catch (err: any) {
       console.error('Email Sign Up Error:', err);

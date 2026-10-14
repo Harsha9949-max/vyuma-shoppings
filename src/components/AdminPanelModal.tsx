@@ -48,10 +48,12 @@ import {
   BarChart3,
   Layers,
   LogOut,
+  Database,
 } from 'lucide-react';
 import { useAuth, SUPER_ADMIN_EMAILS } from '../context/AuthContext';
 import { auth } from '../firebase/config';
 import { useShop } from '../context/ShopContext';
+import { SupabaseCompressionPanel } from './SupabaseCompressionPanel';
 import {
   AuditLog,
   AutomationRule,
@@ -115,6 +117,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
     | 'pricing_engine'
     | 'settings'
     | 'audit_logs'
+    | 'supabase'
   >('overview');
 
   const [adminSearchQuery, setAdminSearchQuery] = useState('');
@@ -178,9 +181,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
   const [isSyncing, setIsSyncing] = useState(false);
   const [lastSyncTime, setLastSyncTime] = useState<string>('Live Connected');
   const [syncedShops, setSyncedShops] = useState([
-    { id: 'vyuma-b2b', name: 'Vyuma B2B Hub', syncCount: products.length || 18, status: 'Optimal', type: 'Central Truth' },
-    { id: 'growplex-retail', name: 'Growplex Marketplace', syncCount: products.length || 18, status: 'Optimal', type: 'Synced Reseller' },
-    { id: 'buyrix-wholesale', name: 'BuyRix Wholesale', syncCount: products.length || 18, status: 'Optimal', type: 'Wholesale Node' },
+    { id: 'vyuma-b2b', name: 'Vyuma B2B Hub', syncCount: products.length, status: 'Active', type: 'Central Master Catalog' },
+    { id: 'growplex-retail', name: 'Growplex Marketplace', syncCount: products.length, status: 'Connected', type: 'Affiliate Reseller Channel' },
+    { id: 'buyrix-wholesale', name: 'BuyRix Wholesale', syncCount: products.length, status: 'Connected', type: 'B2B Wholesale Channel' },
   ]);
 
   // Bulk Pricing States
@@ -242,7 +245,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
       totalSpent: 0,
       lastOrder: o.createdAt,
       role: SUPER_ADMIN_EMAILS.includes(o.userEmail.toLowerCase()) ? 'Super Admin' : 'Customer',
-      walletBalance: 2500,
+      walletBalance: 0,
     };
     existing.ordersCount += 1;
     existing.totalSpent += o.finalPayable;
@@ -397,9 +400,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
         price: Number(price),
         originalPrice: Number(originalPrice),
         discountPercent: discount,
-        rating: 4.8,
-        ratingCount: 12,
-        reviewCount: 4,
+        rating: 0,
+        ratingCount: 0,
+        reviewCount: 0,
         image: image || '/assets/mobiles.png',
         images: [image || '/assets/mobiles.png'],
         isAssured: true,
@@ -663,6 +666,7 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                 { id: 'pricing_engine', label: 'Bulk Pricing Engine', icon: TrendingUp },
                 { id: 'settings', label: 'Store Controls', icon: Settings },
                 { id: 'audit_logs', label: 'Audit Logs', icon: History },
+                { id: 'supabase', label: 'Supabase & Compression', icon: Database },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const isActive = activeTab === tab.id;
@@ -774,31 +778,33 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                       </span>
                     </div>
 
-                    <div className="h-40 w-full pt-2">
-                      <svg className="w-full h-full overflow-visible" viewBox="0 0 600 120" preserveAspectRatio="none">
-                        <defs>
-                          <linearGradient id="chartGradientMain" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#2874f0" stopOpacity="0.25" />
-                            <stop offset="100%" stopColor="#2874f0" stopOpacity="0.0" />
-                          </linearGradient>
-                        </defs>
-                        <path
-                          d="M0,110 Q50,75 100,85 T200,60 T300,45 T400,65 T500,25 T600,10"
-                          fill="none"
-                          stroke="#2874f0"
-                          strokeWidth="3.5"
-                          strokeLinecap="round"
-                        />
-                        <path
-                          d="M0,110 Q50,75 100,85 T200,60 T300,45 T400,65 T500,25 T600,10 L600,120 L0,120 Z"
-                          fill="url(#chartGradientMain)"
-                        />
-                        <circle cx="100" cy="85" r="4.5" fill="#ffe500" stroke="#2874f0" strokeWidth="2" />
-                        <circle cx="300" cy="45" r="4.5" fill="#ffe500" stroke="#2874f0" strokeWidth="2" />
-                        <circle cx="500" cy="25" r="4.5" fill="#ffe500" stroke="#2874f0" strokeWidth="2" />
-                        <circle cx="600" cy="10" r="5" fill="#ffe500" stroke="#2874f0" strokeWidth="2" className="animate-pulse" />
-                      </svg>
-                    </div>
+                    {allOrders.length === 0 ? (
+                      <div className="h-40 w-full flex flex-col items-center justify-center bg-gray-50 rounded-lg border border-dashed border-gray-200 text-center p-6">
+                        <TrendingUp className="w-7 h-7 text-gray-300 mb-1.5" />
+                        <p className="text-xs font-bold text-gray-700">No Sales Transactions Recorded</p>
+                        <p className="text-[11px] text-gray-400 max-w-sm mt-0.5">
+                          Daily revenue velocity and checkout trajectories will calculate and graph in real-time as customer orders are placed.
+                        </p>
+                      </div>
+                    ) : (
+                      <div className="h-40 w-full pt-2">
+                        <svg className="w-full h-full overflow-visible" viewBox="0 0 600 120" preserveAspectRatio="none">
+                          <defs>
+                            <linearGradient id="chartGradientMain" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="0%" stopColor="#2874f0" stopOpacity="0.25" />
+                              <stop offset="100%" stopColor="#2874f0" stopOpacity="0.0" />
+                            </linearGradient>
+                          </defs>
+                          <path
+                            d={`M0,110 L600,${Math.max(10, 110 - Math.min(100, Math.round((totalRevenue / 1000000) * 100)))}`}
+                            fill="none"
+                            stroke="#2874f0"
+                            strokeWidth="3.5"
+                            strokeLinecap="round"
+                          />
+                        </svg>
+                      </div>
+                    )}
 
                     <div className="flex justify-between text-[10px] text-gray-400 font-mono pt-3 border-t border-gray-100">
                       <span>Day 1</span>
@@ -808,50 +814,63 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                     </div>
                   </div>
 
-                  {/* AI Demand Forecasting & Replenishment Recommender */}
+                  {/* Real-time Inventory & Health Overview */}
                   <div className="bg-white p-5 rounded-xl border border-gray-200 shadow-xs flex flex-col justify-between">
                     <div>
                       <div className="flex items-center justify-between mb-3">
                         <h3 className="font-black text-sm text-gray-900 flex items-center gap-1.5">
-                          <Sparkles className="w-4 h-4 text-[#2874f0]" />
-                          <span>AI Demand Forecaster</span>
+                          <Activity className="w-4 h-4 text-[#2874f0]" />
+                          <span>Catalog Health & Stock Intelligence</span>
                         </h3>
-                        <button
-                          onClick={handleFetchAiDemandForecast}
-                          disabled={isLoadingForecast}
-                          className="bg-blue-50 hover:bg-blue-100 text-[#2874f0] text-[10px] font-bold px-2 py-1 rounded transition cursor-pointer"
-                        >
-                          {isLoadingForecast ? 'Analyzing...' : 'Refresh Insights'}
-                        </button>
+                        <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded">
+                          Live Sync
+                        </span>
                       </div>
 
                       <div className="space-y-3 text-xs">
-                        <p className="text-gray-600 leading-relaxed bg-gray-50 p-2.5 rounded-lg border border-gray-100">
-                          {aiForecastData?.summary ||
-                            'Strong purchasing velocity in Mobiles and Electronics. Stock levels healthy across essential departments.'}
-                        </p>
+                        <div className="bg-gray-50 p-3 rounded-lg border border-gray-100 space-y-1.5">
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 text-[11px]">Total Published SKUs:</span>
+                            <span className="font-bold text-gray-900">{products.length} Items</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 text-[11px]">Low Stock Threshold (≤10):</span>
+                            <span className={`font-bold ${lowStockCount > 0 ? 'text-amber-600' : 'text-emerald-600'}`}>
+                              {lowStockCount} Items
+                            </span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-gray-500 text-[11px]">Inventory Valuation:</span>
+                            <span className="font-bold text-gray-900">₹{inventoryValuation.toLocaleString('en-IN')}</span>
+                          </div>
+                        </div>
 
                         <div>
-                          <span className="font-bold text-gray-900 text-[11px] block mb-1">Top Reorder Recommendations:</span>
-                          <ul className="space-y-1 text-[11px] text-gray-600">
-                            {(aiForecastData?.topRecommendations || [
-                              'Reorder Apple iPhone 15 units before weekend surges.',
-                              'Bundle audio accessories with smartphone purchases to lift AOV.',
-                              'Maintain minimum 15 units of festive tea & cooking essentials.',
-                            ]).map((r, i) => (
-                              <li key={i} className="flex items-start gap-1.5">
-                                <span className="text-[#2874f0] font-bold">•</span>
-                                <span>{r}</span>
-                              </li>
-                            ))}
-                          </ul>
+                          <span className="font-bold text-gray-900 text-[11px] block mb-1">Stock Replenishment Status:</span>
+                          {lowStockCount > 0 ? (
+                            <ul className="space-y-1 text-[11px]">
+                              {products
+                                .filter((p) => (p.stockCount || 0) <= 10)
+                                .slice(0, 3)
+                                .map((p) => (
+                                  <li key={p.id} className="flex items-center justify-between text-amber-800 bg-amber-50 px-2 py-1 rounded">
+                                    <span className="truncate max-w-[180px]">{p.title}</span>
+                                    <span className="font-bold shrink-0">{p.stockCount} left</span>
+                                  </li>
+                                ))}
+                            </ul>
+                          ) : (
+                            <p className="text-[11px] text-gray-500 bg-emerald-50 text-emerald-800 p-2 rounded">
+                              ✓ All catalog inventory levels are healthy and within operational thresholds.
+                            </p>
+                          )}
                         </div>
                       </div>
                     </div>
 
                     <div className="pt-3 border-t border-gray-100 mt-4">
-                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-2 py-1 rounded-md font-bold block">
-                        ✓ Model Grounding: Gemini 2.5 Flash Enterprise
+                      <span className="text-[10px] text-gray-400 block font-mono">
+                        Firestore database connection active
                       </span>
                     </div>
                   </div>
@@ -870,32 +889,40 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
                   </div>
 
                   <div className="divide-y divide-gray-100">
-                    {allOrders.slice(0, 5).map((o) => (
-                      <div key={o.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition">
-                        <div>
-                          <span className="font-black text-gray-900">#{o.id}</span>
-                          <span className="text-gray-500 ml-2">{o.userEmail}</span>
-                          <p className="text-[10px] text-gray-400 mt-0.5">
-                            {o.items.length} items • {new Date(o.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
-
-                        <div className="flex items-center gap-4">
-                          <span className="font-black text-gray-900">₹{o.finalPayable.toLocaleString('en-IN')}</span>
-                          <span
-                            className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              o.orderStatus === 'DELIVERED'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : o.orderStatus === 'CANCELLED'
-                                ? 'bg-rose-100 text-rose-800'
-                                : 'bg-blue-100 text-[#2874f0]'
-                            }`}
-                          >
-                            {o.orderStatus}
-                          </span>
-                        </div>
+                    {allOrders.length === 0 ? (
+                      <div className="p-8 text-center text-gray-400">
+                        <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+                        <p className="text-xs font-semibold text-gray-600">No Orders Placed Yet</p>
+                        <p className="text-[11px] text-gray-400 mt-0.5">Live orders placed by shoppers will appear here in real time.</p>
                       </div>
-                    ))}
+                    ) : (
+                      allOrders.slice(0, 5).map((o) => (
+                        <div key={o.id} className="p-4 flex items-center justify-between hover:bg-gray-50 transition">
+                          <div>
+                            <span className="font-black text-gray-900">#{o.id}</span>
+                            <span className="text-gray-500 ml-2">{o.userEmail}</span>
+                            <p className="text-[10px] text-gray-400 mt-0.5">
+                              {o.items.length} items • {new Date(o.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
+
+                          <div className="flex items-center gap-4">
+                            <span className="font-black text-gray-900">₹{o.finalPayable.toLocaleString('en-IN')}</span>
+                            <span
+                              className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                                o.orderStatus === 'DELIVERED'
+                                  ? 'bg-emerald-100 text-emerald-800'
+                                  : o.orderStatus === 'CANCELLED'
+                                  ? 'bg-rose-100 text-rose-800'
+                                  : 'bg-blue-100 text-[#2874f0]'
+                              }`}
+                            >
+                              {o.orderStatus}
+                            </span>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -2183,6 +2210,9 @@ export const AdminPanelModal: React.FC<AdminPanelModalProps> = ({ isOpen, onClos
 
               </div>
             )}
+
+            {/* MODULE 14: SUPABASE CLOUD & DATA COMPRESSION */}
+            {activeTab === 'supabase' && <SupabaseCompressionPanel />}
 
           </div>
 

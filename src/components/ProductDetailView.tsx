@@ -258,19 +258,9 @@ export const ProductDetailView: React.FC<ProductDetailViewProps> = ({
                   {reviews.length} Verified Customer {reviews.length === 1 ? 'Review' : 'Reviews'}
                 </span>
               </>
-            ) : product.ratingCount > 0 ? (
-              <>
-                <div className="flex items-center gap-1 bg-[#388e3c] text-white text-xs font-bold px-2 py-0.5 rounded">
-                  <span>{product.rating}</span>
-                  <Star className="w-3 h-3 fill-white" />
-                </div>
-                <span className="text-xs text-gray-500 font-medium">
-                  {product.ratingCount.toLocaleString()} Ratings & {product.reviewCount} Reviews
-                </span>
-              </>
             ) : (
-              <span className="text-xs text-gray-400 font-medium">
-                Verified genuine stock
+              <span className="text-xs text-gray-400 font-medium bg-gray-50 px-2 py-0.5 rounded border border-gray-100">
+                No customer reviews yet • Verified authentic inventory
               </span>
             )}
 

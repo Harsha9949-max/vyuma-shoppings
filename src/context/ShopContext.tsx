@@ -15,6 +15,7 @@ import {
   AuditLog,
   AutomationRule,
   StockMovement,
+  UserProfile,
 } from '../types';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
 import {
@@ -46,13 +47,20 @@ import {
   saveAutomationRuleToFirestore,
   subscribeToStockMovements,
   logStockMovement,
+  subscribeToAllUsers,
   DEFAULT_STORE_SETTINGS,
   DEFAULT_COUPONS,
   DEFAULT_AUTOMATION_RULES,
 } from '../firebase/services';
 import { useAuth } from './AuthContext';
+import {
+  syncOrderToBothBackends,
+  syncProductToBothBackends,
+  deleteProductFromBothBackends,
+} from '../services/dualBackendCoordinator';
 
 interface ShopContextType {
+  registeredUsers: UserProfile[];
   products: Product[];
   loadingProducts: boolean;
   cart: CartItem[];
@@ -722,6 +730,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     await placeOrderInFirestore(newOrder);
 
+    // Non-blocking background sync with losslessly compressed payload to Supabase Free Tier
+    syncOrderToSupabase(newOrder).catch((err) => {
+      console.log('Deferred Supabase order sync:', err?.message);
+    });
+
     // Automatically deduct inventory stock for each purchased item
     for (const item of cart) {
       const prod = products.find((p) => p.id === item.productId);
@@ -815,6 +828,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const addNewProduct = async (prod: Product) => {
     await saveProductToFirestore(prod);
     setProducts((prev) => [prod, ...prev.filter((p) => p.id !== prod.id)]);
+    saveCompressedRecord(`prod_${prod.id}`, 'product', prod, {
+      title: prod.title,
+      price: prod.price,
+      category: prod.category,
+    }).catch(() => {});
     if (user?.email) {
       await logAdminActivity(user.email, 'CATALOG', 'ADD_PRODUCT', `Published product ${prod.title} (SKU: ${prod.sku || 'N/A'})`);
     }
@@ -824,6 +842,11 @@ export const ShopProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const updateProduct = async (prod: Product) => {
     await saveProductToFirestore(prod);
     setProducts((prev) => prev.map((p) => (p.id === prod.id ? prod : p)));
+    saveCompressedRecord(`prod_${prod.id}`, 'product', prod, {
+      title: prod.title,
+      price: prod.price,
+      category: prod.category,
+    }).catch(() => {});
     if (user?.email) {
       await logAdminActivity(user.email, 'CATALOG', 'UPDATE_PRODUCT', `Updated product ${prod.title}`);
     }
